@@ -25,5 +25,5 @@ def get_db():
         db.close()
 
 def init_db():
-    from app.models import Following, Snapshot, SnapshotDiff  # noqa
+    from app.models import Following, Snapshot, SnapshotDiff, TargetProfile  # noqa
     Base.metadata.create_all(bind=engine)

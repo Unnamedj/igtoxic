@@ -32,6 +32,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
     .fade-up { animation: fadeUp .3s ease both; }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    .fade-in { animation: fadeIn .4s ease both; }
   </style>
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { accent: '#3b82f6' } } } }
@@ -67,6 +69,28 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- Profile banner -->
+    <div class="card p-4 flex items-center gap-4 fade-in" x-show="profile.username">
+      <div class="relative flex-shrink-0">
+        <img :src="profile.profile_pic_url || ''" class="w-14 h-14 rounded-full object-cover bg-[#1f1f1f]"
+          @error="$el.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 56 56\'%3E%3Crect width=\'56\' height=\'56\' fill=\'%231f1f1f\'/%3E%3C/svg%3E'" />
+        <span x-show="profile.is_verified" class="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+          <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        </span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-white" x-text="'@' + profile.username"></span>
+          <span x-show="profile.full_name" class="text-sm text-[#666]" x-text="profile.full_name"></span>
+        </div>
+        <p x-show="profile.biography" class="text-xs text-[#555] mt-0.5 truncate" x-text="profile.biography"></p>
+      </div>
+      <div x-show="profile.followers_count" class="text-right hidden sm:block flex-shrink-0">
+        <div class="text-lg font-bold text-white" x-text="profile.followers_count?.toLocaleString('es-ES')"></div>
+        <div class="text-xs text-[#555]">Seguidores</div>
+      </div>
+    </div>
 
     <!-- KPI cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -333,6 +357,7 @@
 function dashboard() {
   return {
     loading: false,
+    profile: {},
     stats: {},
     feed: [],
     feedOffset: 0,
@@ -357,12 +382,20 @@ function dashboard() {
     async refreshAll() {
       this.loading = true;
       await Promise.all([
+        this.fetchProfile(),
         this.fetchStats(),
         this.fetchFeed(true),
         this.fetchFollowings(true),
         this.fetchGrowth(),
       ]);
       this.loading = false;
+    },
+
+    async fetchProfile() {
+      try {
+        const r = await fetch('/api/profile');
+        this.profile = await r.json();
+      } catch(e) { console.error('profile', e); }
     },
 
     async fetchStats() {

@@ -18,8 +18,8 @@ from worker.session_manager import (
 
 logger = logging.getLogger(__name__)
 
-IG_USER = os.environ["IG_USERNAME"]    # cuenta que hace login (la "espía")
-IG_PASS = os.environ["IG_PASSWORD"]
+IG_USER = os.environ.get("IG_USERNAME", "")    # cuenta que hace login (la "espía")
+IG_PASS = os.environ.get("IG_PASSWORD", "")
 IG_TARGET = os.environ.get("IG_TARGET", IG_USER)  # cuenta a monitorear
 
 HEADERS = {
@@ -139,7 +139,7 @@ async def _cookies_to_jar(cookies: List[Dict]) -> Dict[str, str]:
 
 async def _get_following_count_and_user_id(
     context: BrowserContext,
-) -> Tuple[Optional[int], Optional[str]]:
+) -> Tuple[Optional[int], Optional[str], Optional[Dict]]:
     page = await context.new_page()
     try:
         await page.goto(
@@ -160,8 +160,16 @@ async def _get_following_count_and_user_id(
                     user = data.get("data", {}).get("user", {})
                     count = user.get("edge_follow", {}).get("count")
                     uid = user.get("id")  # ID del perfil objetivo
+                    profile_data = {
+                        "username": IG_TARGET,
+                        "full_name": user.get("full_name"),
+                        "profile_pic_url": user.get("profile_pic_url"),
+                        "biography": user.get("biography"),
+                        "followers_count": user.get("edge_followed_by", {}).get("count"),
+                        "is_verified": bool(user.get("is_verified", False)),
+                    }
                     if count is not None and uid:
-                        return int(count), uid
+                        return int(count), uid, profile_data
 
         # DOM fallback
         for sel in [
@@ -172,11 +180,11 @@ async def _get_following_count_and_user_id(
                 el = await page.wait_for_selector(sel, timeout=5000)
                 if el:
                     text = (await el.inner_text()).replace(",", "").replace(".", "").strip()
-                    return int(text), user_id
+                    return int(text), None, None
             except Exception:
                 continue
 
-        return None, user_id
+        return None, None, None
     finally:
         await page.close()
 
@@ -245,7 +253,7 @@ async def run_scan() -> Optional[Dict]:
         return None
 
     try:
-        count, user_id = await _get_following_count_and_user_id(context)
+        count, user_id, profile_data = await _get_following_count_and_user_id(context)
 
         if count is None:
             logger.error("Could not read following count from profile")
@@ -265,7 +273,7 @@ async def run_scan() -> Optional[Dict]:
         duration = int(time.time() - t0)
         logger.info("Scan done in %ds — %d followings", duration, len(users))
 
-        return {"users": users, "total_count": count, "duration": duration}
+        return {"users": users, "total_count": count, "duration": duration, "profile": profile_data}
 
     finally:
         await browser.close()

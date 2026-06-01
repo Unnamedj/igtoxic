@@ -1,13 +1,13 @@
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 import time
 
-from app.models import Following, Snapshot, SnapshotDiff
+from app.models import Following, Snapshot, SnapshotDiff, TargetProfile
 from app.services.segmentation import classify_segment
 
 
-def process_scan(db: Session, scraped_users: List[Dict], total_count: int, duration: int) -> Snapshot:
+def process_scan(db: Session, scraped_users: List[Dict], total_count: int, duration: int, profile_data: Optional[Dict] = None) -> Snapshot:
     """
     Compare scraped_users against current DB state.
     Returns a new Snapshot with diffs recorded.
@@ -88,6 +88,16 @@ def process_scan(db: Session, scraped_users: List[Dict], total_count: int, durat
         db.query(Following).filter(Following.username == username).update(
             {"last_seen": now}
         )
+
+    # Upsert target profile info
+    if profile_data:
+        existing = db.query(TargetProfile).first()
+        if existing:
+            for k, v in profile_data.items():
+                setattr(existing, k, v)
+            existing.updated_at = datetime.utcnow()
+        else:
+            db.add(TargetProfile(**profile_data, updated_at=datetime.utcnow()))
 
     db.commit()
     db.refresh(snapshot)

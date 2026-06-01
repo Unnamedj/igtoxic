@@ -4,6 +4,18 @@ from datetime import datetime
 from app.database import Base
 
 
+class TargetProfile(Base):
+    __tablename__ = "target_profile"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(100))
+    full_name = Column(String(200), nullable=True)
+    profile_pic_url = Column(Text, nullable=True)
+    biography = Column(Text, nullable=True)
+    followers_count = Column(Integer, nullable=True)
+    is_verified = Column(Boolean, default=False)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Following(Base):
     __tablename__ = "followings"
 
