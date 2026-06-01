@@ -18,8 +18,9 @@ from worker.session_manager import (
 
 logger = logging.getLogger(__name__)
 
-IG_USER = os.environ["IG_USERNAME"]
+IG_USER = os.environ["IG_USERNAME"]    # cuenta que hace login (la "espía")
 IG_PASS = os.environ["IG_PASSWORD"]
+IG_TARGET = os.environ.get("IG_TARGET", IG_USER)  # cuenta a monitorear
 
 HEADERS = {
     "User-Agent": (
@@ -142,7 +143,7 @@ async def _get_following_count_and_user_id(
     page = await context.new_page()
     try:
         await page.goto(
-            f"https://www.instagram.com/{IG_USER}/",
+            f"https://www.instagram.com/{IG_TARGET}/",
             wait_until="domcontentloaded",
             timeout=30000,
         )
@@ -150,22 +151,21 @@ async def _get_following_count_and_user_id(
 
         raw_cookies = await context.cookies()
         jar = await _cookies_to_jar(raw_cookies)
-        user_id = get_user_id_from_cookies(raw_cookies)
 
         async with aiohttp.ClientSession(cookies=jar) as session:
-            url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={IG_USER}"
+            url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={IG_TARGET}"
             async with session.get(url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     user = data.get("data", {}).get("user", {})
                     count = user.get("edge_follow", {}).get("count")
-                    uid = user.get("id") or user_id
-                    if count is not None:
+                    uid = user.get("id")  # ID del perfil objetivo
+                    if count is not None and uid:
                         return int(count), uid
 
         # DOM fallback
         for sel in [
-            f'a[href="/{IG_USER}/following/"] span',
+            f'a[href="/{IG_TARGET}/following/"] span',
             'a[href*="following"] span',
         ]:
             try:
