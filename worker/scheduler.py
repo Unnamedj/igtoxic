@@ -58,6 +58,7 @@ async def _execute_scan() -> None:
             scraped_users=result["users"],
             total_count=result["total_count"],
             duration=result["duration"],
+            profile_data=result.get("profile"),
         )
         logger.info(
             "Snapshot #%d — total: %d | +%d -%d",

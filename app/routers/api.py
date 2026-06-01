@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
@@ -5,10 +6,10 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from app.database import get_db
-from app.models import Following, Snapshot, SnapshotDiff
+from app.models import Following, Snapshot, SnapshotDiff, TargetProfile
 from app.schemas import (
     FollowingOut, SnapshotOut, SnapshotDiffOut,
-    DashboardStats, FeedItem
+    DashboardStats, FeedItem, TargetProfileOut
 )
 
 router = APIRouter(prefix="/api")
@@ -159,3 +160,19 @@ def get_growth_chart(days: int = Query(30, le=365), db: Session = Depends(get_db
         }
         for s in snapshots
     ]
+
+
+@router.get("/profile", response_model=TargetProfileOut)
+def get_target_profile(db: Session = Depends(get_db)):
+    profile = db.query(TargetProfile).first()
+    if not profile:
+        return TargetProfileOut(
+            username=os.getenv("IG_TARGET", os.getenv("IG_USERNAME", "unknown")),
+            full_name=None,
+            profile_pic_url=None,
+            biography=None,
+            followers_count=None,
+            is_verified=False,
+            updated_at=None,
+        )
+    return profile

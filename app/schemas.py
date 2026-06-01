@@ -3,6 +3,19 @@ from datetime import datetime
 from typing import Optional, List
 
 
+class TargetProfileOut(BaseModel):
+    username: str
+    full_name: Optional[str]
+    profile_pic_url: Optional[str]
+    biography: Optional[str]
+    followers_count: Optional[int]
+    is_verified: bool
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class FollowingOut(BaseModel):
     id: int
     username: str
