@@ -357,6 +357,7 @@
 function dashboard() {
   return {
     loading: false,
+    profile: {},
     stats: {},
     feed: [],
     feedOffset: 0,
@@ -381,12 +382,20 @@ function dashboard() {
     async refreshAll() {
       this.loading = true;
       await Promise.all([
+        this.fetchProfile(),
         this.fetchStats(),
         this.fetchFeed(true),
         this.fetchFollowings(true),
         this.fetchGrowth(),
       ]);
       this.loading = false;
+    },
+
+    async fetchProfile() {
+      try {
+        const r = await fetch('/api/profile');
+        this.profile = await r.json();
+      } catch(e) { console.error('profile', e); }
     },
 
     async fetchStats() {
