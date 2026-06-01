@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////data/igtoxic.db
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - DATABASE_URL=sqlite:////data/igtoxic.db
+      - IG_USERNAME=${IG_USERNAME}
+      - IG_PASSWORD=${IG_PASSWORD}
+      - COOKIES_PATH=/data/ig_session.json
+    volumes:
+      - data:/data
+    restart: unless-stopped
+    depends_on:
+      - web
+
+volumes:
+  data:

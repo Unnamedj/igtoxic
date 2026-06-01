@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IGToxic · Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #080808; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    .card { background: #111111; border: 1px solid #1e1e1e; border-radius: 12px; }
+    .badge-masc  { background: rgba(59,130,246,.15); color:#60a5fa; border:1px solid rgba(59,130,246,.25); }
+    .badge-fem   { background: rgba(236,72,153,.15);  color:#f472b6; border:1px solid rgba(236,72,153,.25); }
+    .badge-brand { background: rgba(234,179,8,.15);   color:#facc15; border:1px solid rgba(234,179,8,.25);  }
+    .badge-amb   { background: rgba(100,116,139,.15); color:#94a3b8; border:1px solid rgba(100,116,139,.25);}
+    .tag-added   { background: rgba(34,197,94,.12);   color:#4ade80; border:1px solid rgba(34,197,94,.25);  }
+    .tag-removed { background: rgba(239,68,68,.12);   color:#f87171; border:1px solid rgba(239,68,68,.25);  }
+    .avatar { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#1f1f1f; flex-shrink:0; }
+    .avatar-sm { width:32px; height:32px; }
+    input[type=text], input[type=search], select {
+      background:#141414; border:1px solid #262626; color:#e2e8f0;
+      border-radius:8px; padding:8px 12px; outline:none; transition:border .15s;
+    }
+    input:focus, select:focus { border-color:#3b82f6; }
+    select option { background:#141414; }
+    .spin { animation: spin 1.2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .fade-up { animation: fadeUp .3s ease both; }
+  </style>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { accent: '#3b82f6' } } } }
+  </script>
+</head>
+<body class="min-h-screen" x-data="dashboard()" x-init="init()">
+
+  <!-- Top bar -->
+  <header class="sticky top-0 z-50 border-b border-[#1a1a1a]"
+    style="background:rgba(8,8,8,.92);backdrop-filter:blur(12px)">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-white fill-current">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+        </div>
+        <span class="font-semibold tracking-tight text-white">IGToxic
+          <span class="text-[#444] font-normal">Analytics</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-4 text-sm text-[#555]">
+        <span x-show="lastScan" class="hidden sm:block"
+          x-text="'Último scan: ' + formatRelative(lastScan)"></span>
+        <div x-show="loading"
+          class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full spin"></div>
+        <button @click="refreshAll()"
+          class="px-3 py-1.5 rounded-md text-xs border border-[#2a2a2a] hover:border-blue-500 hover:text-blue-400 transition-colors">
+          Actualizar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="card p-5 fade-up">
+        <div class="text-xs text-[#555] uppercase tracking-widest mb-2">Siguiendo</div>
+        <div class="text-3xl font-bold text-white tabular-nums"
+          x-text="stats.total_following ?? '—'"></div>
+        <div class="text-xs text-[#444] mt-1">Cuentas activas</div>
+      </div>
+      <div class="card p-5 fade-up" style="animation-delay:.05s">
+        <div class="text-xs text-[#555] uppercase tracking-widest mb-2">Altas 24h</div>
+        <div class="text-3xl font-bold text-green-400 tabular-nums"
+          x-text="stats.added_last_24h ?? '—'"></div>
+        <div class="text-xs text-[#444] mt-1">Nuevos seguidos</div>
+      </div>
+      <div class="card p-5 fade-up" style="animation-delay:.10s">
+        <div class="text-xs text-[#555] uppercase tracking-widest mb-2">Bajas 24h</div>
+        <div class="text-3xl font-bold text-red-400 tabular-nums"
+          x-text="stats.removed_last_24h ?? '—'"></div>
+        <div class="text-xs text-[#444] mt-1">Dejados de seguir</div>
+      </div>
+      <div class="card p-5 fade-up" style="animation-delay:.15s">
+        <div class="text-xs text-[#555] uppercase tracking-widest mb-2">Escaneos</div>
+        <div class="text-3xl font-bold text-white tabular-nums"
+          x-text="stats.total_scans ?? '—'"></div>
+        <div class="text-xs text-[#444] mt-1">Registros totales</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Segment donut -->
+      <div class="card p-6 flex flex-col">
+        <h2 class="text-xs font-medium text-[#666] uppercase tracking-widest mb-5">
+          Segmentación predictiva
+        </h2>
+        <div class="flex items-center justify-center" style="height:180px">
+          <canvas id="segmentChart"></canvas>
+        </div>
+        <div class="mt-5 space-y-2">
+          <template x-for="[label, val] in Object.entries(stats.segments || {})" :key="label">
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full flex-shrink-0"
+                  :style="'background:' + segColor(label)"></span>
+                <span class="text-[#888]" x-text="label"></span>
+              </span>
+              <span class="text-white font-medium tabular-nums" x-text="val"></span>
+            </div>
+          </template>
+          <template x-if="!Object.keys(stats.segments || {}).length">
+            <p class="text-xs text-[#444] text-center py-2">Sin datos aún</p>
+          </template>
+        </div>
+      </div>
+
+      <!-- Growth line chart -->
+      <div class="card p-6 lg:col-span-2">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xs font-medium text-[#666] uppercase tracking-widest">
+            Crecimiento de siguiendo
+          </h2>
+          <div class="flex gap-1.5">
+            <template x-for="d in [7, 30, 90]" :key="d">
+              <button @click="growthDays = d; fetchGrowth()"
+                :class="growthDays === d
+                  ? 'bg-blue-600/20 text-blue-400 border-blue-600/50'
+                  : 'text-[#555] border-[#222] hover:border-[#444] hover:text-[#aaa]'"
+                class="px-2 py-1 text-xs border rounded-md transition-colors"
+                x-text="d + 'd'"></button>
+            </template>
+          </div>
+        </div>
+        <div style="position:relative;height:190px">
+          <canvas id="growthChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs: Feed / Table -->
+    <div x-data="{ tab: 'feed' }">
+      <div class="flex gap-1 border-b border-[#1a1a1a] mb-6">
+        <button @click="tab='feed'"
+          :class="tab==='feed'
+            ? 'text-white border-b-2 border-blue-500'
+            : 'text-[#555] hover:text-[#888]'"
+          class="px-4 pb-3 text-sm font-medium transition-colors">
+          Actividad reciente
+        </button>
+        <button @click="tab='table'"
+          :class="tab==='table'
+            ? 'text-white border-b-2 border-blue-500'
+            : 'text-[#555] hover:text-[#888]'"
+          class="px-4 pb-3 text-sm font-medium transition-colors">
+          Directorio
+        </button>
+      </div>
+
+      <!-- Feed -->
+      <div x-show="tab==='feed'" x-transition>
+        <div class="flex items-center gap-2 mb-5 flex-wrap">
+          <button @click="feedFilter=''; fetchFeed(true)"
+            :class="feedFilter==='' ? 'bg-[#1e1e1e] text-white border-[#333]' : 'text-[#555] border-[#1e1e1e] hover:text-[#aaa]'"
+            class="px-3 py-1.5 text-xs border rounded-lg transition-colors">Todos</button>
+          <button @click="feedFilter='added'; fetchFeed(true)"
+            :class="feedFilter==='added' ? 'tag-added' : 'text-[#555] border-[#1e1e1e] hover:text-green-400'"
+            class="px-3 py-1.5 text-xs border rounded-lg transition-colors">+ Altas</button>
+          <button @click="feedFilter='removed'; fetchFeed(true)"
+            :class="feedFilter==='removed' ? 'tag-removed' : 'text-[#555] border-[#1e1e1e] hover:text-red-400'"
+            class="px-3 py-1.5 text-xs border rounded-lg transition-colors">− Bajas</button>
+        </div>
+
+        <div class="space-y-2">
+          <template x-if="feed.length === 0 && !loading">
+            <div class="text-center py-20">
+              <div class="text-[#333] text-4xl mb-3">◎</div>
+              <p class="text-[#444] text-sm">Sin actividad registrada todavía.</p>
+              <p class="text-[#333] text-xs mt-1">El primer escaneo se ejecutará pronto.</p>
+            </div>
+          </template>
+          <template x-for="item in feed" :key="item.username + item.timestamp">
+            <div class="card px-4 py-3 flex items-center gap-4 hover:border-[#2a2a2a] transition-all fade-up">
+              <div class="relative flex-shrink-0">
+                <img :src="item.profile_pic_url || ''" class="avatar"
+                  @error="$el.src=fallbackAvatar(item.username)" :alt="item.username" />
+                <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                  :class="item.diff_type==='added' ? 'bg-green-500' : 'bg-red-500'">
+                  <span class="text-white font-bold text-[9px] leading-none"
+                    x-text="item.diff_type==='added' ? '+' : '−'"></span>
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-white truncate"
+                    x-text="'@' + item.username"></span>
+                  <span x-show="item.full_name" class="text-xs text-[#555] truncate"
+                    x-text="item.full_name"></span>
+                </div>
+                <div class="flex items-center gap-2 mt-1 flex-wrap">
+                  <span class="text-xs px-2 py-0.5 rounded-full"
+                    :class="segBadge(item.segment)"
+                    x-text="item.segment || 'Segmento Ambiguo'"></span>
+                  <span class="text-xs px-2 py-0.5 rounded-full"
+                    :class="item.diff_type==='added' ? 'tag-added' : 'tag-removed'"
+                    x-text="item.diff_type==='added' ? 'Alta' : 'Baja'"></span>
+                </div>
+              </div>
+              <div class="text-xs text-[#444] whitespace-nowrap flex-shrink-0"
+                x-text="formatRelative(item.timestamp)"></div>
+            </div>
+          </template>
+        </div>
+
+        <div x-show="feed.length > 0 && feed.length % 50 === 0" class="mt-5 text-center">
+          <button @click="loadMoreFeed()"
+            class="text-xs text-[#444] hover:text-blue-400 transition-colors px-4 py-2">
+            Cargar más →
+          </button>
+        </div>
+      </div>
+
+      <!-- Directory table -->
+      <div x-show="tab==='table'" x-transition>
+        <div class="flex flex-col sm:flex-row gap-3 mb-5">
+          <input type="search" x-model="tableSearch"
+            @input.debounce.400ms="fetchFollowings(true)"
+            placeholder="Buscar por usuario o nombre…"
+            class="flex-1 text-sm" />
+          <select x-model="tableSegment" @change="fetchFollowings(true)" class="text-sm sm:w-52">
+            <option value="">Todos los segmentos</option>
+            <option value="Segmento Masculino">Masculino</option>
+            <option value="Segmento Femenino">Femenino</option>
+            <option value="Marca/Empresa">Marca / Empresa</option>
+            <option value="Segmento Ambiguo">Ambiguo</option>
+          </select>
+          <select x-model="tableActive" @change="fetchFollowings(true)" class="text-sm sm:w-36">
+            <option value="true">Activos</option>
+            <option value="false">Inactivos</option>
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-[#1a1a1a]">
+                  <th class="text-left px-4 py-3 text-xs text-[#555] font-medium uppercase tracking-wider">Usuario</th>
+                  <th class="text-left px-4 py-3 text-xs text-[#555] font-medium uppercase tracking-wider hidden md:table-cell">Nombre</th>
+                  <th class="text-left px-4 py-3 text-xs text-[#555] font-medium uppercase tracking-wider">Segmento</th>
+                  <th class="text-left px-4 py-3 text-xs text-[#555] font-medium uppercase tracking-wider hidden lg:table-cell">Último visto</th>
+                  <th class="text-left px-4 py-3 text-xs text-[#555] font-medium uppercase tracking-wider">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-if="followings.length === 0 && !loading">
+                  <tr>
+                    <td colspan="5" class="text-center py-16 text-[#444] text-sm">
+                      Sin resultados para los filtros seleccionados.
+                    </td>
+                  </tr>
+                </template>
+                <template x-for="f in followings" :key="f.id">
+                  <tr class="border-b border-[#141414] hover:bg-[#141414] transition-colors">
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        <img :src="f.profile_pic_url || ''" class="avatar avatar-sm"
+                          @error="$el.src=fallbackAvatar(f.username)" />
+                        <a :href="'https://instagram.com/' + f.username" target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-white hover:text-blue-400 transition-colors font-medium truncate max-w-[140px]"
+                          x-text="'@' + f.username"></a>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-[#666] hidden md:table-cell truncate max-w-[180px]"
+                      x-text="f.full_name || '—'"></td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
+                        :class="segBadge(f.segment)"
+                        x-text="f.segment || 'Segmento Ambiguo'"></span>
+                    </td>
+                    <td class="px-4 py-3 text-[#444] text-xs hidden lg:table-cell"
+                      x-text="formatRelative(f.last_seen)"></td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs font-medium"
+                        :class="f.is_active ? 'text-green-500' : 'text-[#555]'"
+                        x-text="f.is_active ? 'Activo' : 'Inactivo'"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-4 px-1">
+          <span class="text-xs text-[#444]"
+            x-text="followings.length + ' resultado' + (followings.length !== 1 ? 's' : '')"></span>
+          <div class="flex gap-2">
+            <button @click="tablePage > 0 && (tablePage--, fetchFollowings())"
+              :disabled="tablePage === 0"
+              class="px-3 py-1.5 text-xs border border-[#1e1e1e] rounded-md text-[#555] hover:text-white disabled:opacity-30 transition-colors">
+              ← Anterior
+            </button>
+            <span class="px-2 py-1.5 text-xs text-[#444]" x-text="'Pág. ' + (tablePage + 1)"></span>
+            <button @click="followings.length >= tableLimit && (tablePage++, fetchFollowings())"
+              :disabled="followings.length < tableLimit"
+              class="px-3 py-1.5 text-xs border border-[#1e1e1e] rounded-md text-[#555] hover:text-white disabled:opacity-30 transition-colors">
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-[#111] mt-16 py-6 text-center text-xs text-[#2a2a2a]">
+    IGToxic Analytics · Privado · FastAPI + Playwright + Railway
+  </footer>
+
+<script>
+function dashboard() {
+  return {
+    loading: false,
+    stats: {},
+    feed: [],
+    feedOffset: 0,
+    feedFilter: '',
+    followings: [],
+    tableSearch: '',
+    tableSegment: '',
+    tableActive: 'true',
+    tablePage: 0,
+    tableLimit: 50,
+    growthDays: 30,
+    lastScan: null,
+    _segChart: null,
+    _growChart: null,
+
+    async init() {
+      await this.refreshAll();
+      // Auto-refresh every 5 minutes
+      setInterval(() => this.fetchStats(), 5 * 60 * 1000);
+    },
+
+    async refreshAll() {
+      this.loading = true;
+      await Promise.all([
+        this.fetchStats(),
+        this.fetchFeed(true),
+        this.fetchFollowings(true),
+        this.fetchGrowth(),
+      ]);
+      this.loading = false;
+    },
+
+    async fetchStats() {
+      try {
+        const r = await fetch('/api/stats');
+        if (!r.ok) return;
+        this.stats = await r.json();
+        if (this.stats.last_scan) this.lastScan = this.stats.last_scan;
+        this.$nextTick(() => this.renderSegmentChart());
+      } catch (e) { console.warn('stats:', e); }
+    },
+
+    async fetchFeed(reset = false) {
+      if (reset) { this.feed = []; this.feedOffset = 0; }
+      try {
+        const qs = new URLSearchParams({ limit: 50, offset: this.feedOffset });
+        if (this.feedFilter) qs.set('diff_type', this.feedFilter);
+        const r = await fetch(`/api/feed?${qs}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        this.feed = reset ? data : [...this.feed, ...data];
+      } catch (e) { console.warn('feed:', e); }
+    },
+
+    async loadMoreFeed() {
+      this.feedOffset += 50;
+      await this.fetchFeed(false);
+    },
+
+    async fetchFollowings(reset = false) {
+      if (reset) this.tablePage = 0;
+      try {
+        const qs = new URLSearchParams({
+          limit: this.tableLimit,
+          offset: this.tablePage * this.tableLimit,
+        });
+        if (this.tableSearch) qs.set('search', this.tableSearch);
+        if (this.tableSegment) qs.set('segment', this.tableSegment);
+        if (this.tableActive !== '') qs.set('is_active', this.tableActive);
+        const r = await fetch(`/api/followings?${qs}`);
+        if (!r.ok) return;
+        this.followings = await r.json();
+      } catch (e) { console.warn('followings:', e); }
+    },
+
+    async fetchGrowth() {
+      try {
+        const r = await fetch(`/api/growth?days=${this.growthDays}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        this.$nextTick(() => this.renderGrowthChart(data));
+      } catch (e) { console.warn('growth:', e); }
+    },
+
+    renderSegmentChart() {
+      const segs = this.stats.segments || {};
+      const labels = Object.keys(segs);
+      if (!labels.length) return;
+      const ctx = document.getElementById('segmentChart');
+      if (!ctx) return;
+      if (this._segChart) this._segChart.destroy();
+      this._segChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: Object.values(segs),
+            backgroundColor: labels.map(l => this.segColor(l)),
+            borderWidth: 0,
+            hoverOffset: 6,
+          }],
+        },
+        options: {
+          cutout: '74%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: { label: c => ` ${c.label}: ${c.raw}` },
+            },
+          },
+          animation: { duration: 500 },
+        },
+      });
+    },
+
+    renderGrowthChart(data) {
+      const ctx = document.getElementById('growthChart');
+      if (!ctx) return;
+      if (this._growChart) this._growChart.destroy();
+      const labels = data.map(d => {
+        const dt = new Date(d.timestamp);
+        return dt.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+      });
+      this._growChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Siguiendo',
+            data: data.map(d => d.total_count),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,.06)',
+            borderWidth: 2,
+            pointRadius: data.length < 15 ? 4 : 2,
+            pointBackgroundColor: '#3b82f6',
+            tension: 0.35,
+            fill: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#1a1a1a' }, ticks: { color: '#555', maxTicksLimit: 8 } },
+            y: { grid: { color: '#1a1a1a' }, ticks: { color: '#555' } },
+          },
+          animation: { duration: 350 },
+        },
+      });
+    },
+
+    segColor(label) {
+      return {
+        'Segmento Masculino': '#3b82f6',
+        'Segmento Femenino': '#ec4899',
+        'Marca/Empresa':      '#eab308',
+        'Segmento Ambiguo':   '#475569',
+      }[label] || '#334155';
+    },
+
+    segBadge(label) {
+      return {
+        'Segmento Masculino': 'badge-masc',
+        'Segmento Femenino':  'badge-fem',
+        'Marca/Empresa':      'badge-brand',
+        'Segmento Ambiguo':   'badge-amb',
+      }[label] || 'badge-amb';
+    },
+
+    fallbackAvatar(username) {
+      const initial = (username || '?')[0].toUpperCase();
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' fill='%231f1f1f'/><text x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-size='16' fill='%23555' font-family='sans-serif'>${initial}</text></svg>`;
+      return `data:image/svg+xml,${svg}`;
+    },
+
+    formatRelative(iso) {
+      if (!iso) return '';
+      const diff = Date.now() - new Date(iso).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'ahora';
+      if (m < 60) return `${m}m`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h`;
+      const d = Math.floor(h / 24);
+      if (d < 30) return `${d}d`;
+      return new Date(iso).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+    },
+  };
+}
+</script>
+</body>
+</html>
